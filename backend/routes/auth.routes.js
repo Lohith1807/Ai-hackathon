@@ -4,17 +4,14 @@ const rateLimit = require('express-rate-limit');
 
 const router = express.Router();
 
-const otpLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 3, // Limit each IP/email to 3 OTP requests per windowMs
-  message: 'Too many OTP requests, please try again after 10 minutes',
-  keyGenerator: (req) => {
-    return req.body.email || req.ip;
-  }
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Limit each IP to 10 requests per windowMs
+  message: 'Too many auth attempts, please try again after 15 minutes',
 });
 
-router.post('/request-otp', otpLimiter, authController.requestOtp);
-router.post('/verify-otp', authController.verifyOtp);
+router.post('/register', authLimiter, authController.register);
+router.post('/login', authLimiter, authController.login);
 router.post('/logout', authController.logout);
 
 module.exports = router;

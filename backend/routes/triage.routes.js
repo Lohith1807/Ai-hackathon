@@ -7,11 +7,8 @@ const router = express.Router();
 
 const triageLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 10, // Limit each IP/user to 10 requests per minute
+  max: 10, // Limit each IP to 10 requests per minute
   message: 'Too many triage requests, please try again after a minute',
-  keyGenerator: (req) => {
-    return req.user ? req.user.email : req.ip;
-  }
 });
 
 // Protect all routes in triage - wait, the user prompt says:

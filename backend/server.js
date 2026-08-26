@@ -45,7 +45,7 @@ app.use('/api/v1/triage', require('./routes/triage.routes'));
 app.use('/api/v1/history', require('./routes/history.routes'));
 
 // Catch all unhandled routes
-app.all('*', (req, res, next) => {
+app.use((req, res, next) => {
   res.status(404).json({
     success: false,
     message: `Can't find ${req.originalUrl} on this server!`
@@ -58,10 +58,8 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 let server;
 
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-}).then(() => {
+mongoose.connect(process.env.MONGO_URI, { family: 4 })
+  .then(() => {
   console.log('MongoDB connected successfully');
   server = app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

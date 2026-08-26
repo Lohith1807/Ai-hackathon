@@ -1,108 +1,84 @@
 const User = require('../models/User');
-const sendEmail = require('../utils/email');
 const jwt = require('jsonwebtoken');
 const { AppError } = require('../middleware/errorHandler');
 
-const generateOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-};
-
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: '1h'
+    expiresIn: '7d'
   });
 };
 
-exports.requestOtp = async (req, res, next) => {
+const createSendToken = (user, statusCode, res, message) => {
+  const token = signToken(user._id);
+
+  res.cookie('token', token, {
+    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+  });
+
+  // Remove password from output
+  user.password = undefined;
+
+  res.status(statusCode).json({
+    success: true,
+    message,
+    data: { user: { id: user._id, email: user.email, mobile: user.mobile } }
+  });
+};
+
+exports.register = async (req, res, next) => {
   try {
-    const { email } = req.body;
-    if (!email) {
-      return next(new AppError('Please provide an email address', 400));
-    }
-
-    let user = await User.findOne({ email: email.toLowerCase() });
+    const { identifier, password } = req.body;
     
-    if (!user) {
-      user = await User.create({ email: email.toLowerCase() });
+    if (!identifier || !password) {
+      return next(new AppError('Please provide an email/mobile and password', 400));
     }
 
-    const otp = generateOTP();
-    // Hash OTP before saving for real production, but plain is okay for hackathon demo given short expiry
-    user.otp = otp;
-    user.otpExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
+    const isEmail = identifier.includes('@');
     
-    await user.save({ validateBeforeSave: false });
+    // Check if user already exists
+    const existingUser = await User.findOne({
+      $or: [{ email: identifier }, { mobile: identifier }]
+    });
 
-    const message = `Your CareNavigator login code is: ${otp}\nThis code is valid for 5 minutes.`;
-
-    try {
-      await sendEmail({
-        email: user.email,
-        subject: 'CareNavigator Login Code',
-        message
-      });
-
-      res.status(200).json({
-        success: true,
-        message: 'OTP sent to email',
-        data: {}
-      });
-    } catch (err) {
-      user.otp = undefined;
-      user.otpExpires = undefined;
-      await user.save({ validateBeforeSave: false });
-      
-      console.error(err);
-      return next(new AppError('There was an error sending the email. Try again later!', 500));
+    if (existingUser) {
+      return next(new AppError('User already exists with this email or mobile', 400));
     }
+
+    const newUser = await User.create({
+      email: isEmail ? identifier.toLowerCase() : undefined,
+      mobile: !isEmail ? identifier : undefined,
+      password: password
+    });
+
+    createSendToken(newUser, 201, res, 'Registered successfully');
   } catch (error) {
     next(error);
   }
 };
 
-exports.verifyOtp = async (req, res, next) => {
+exports.login = async (req, res, next) => {
   try {
-    const { email, otp } = req.body;
-    
-    if (!email || !otp) {
-      return next(new AppError('Please provide email and otp', 400));
+    const { identifier, password } = req.body;
+
+    if (!identifier || !password) {
+      return next(new AppError('Please provide email/mobile and password', 400));
     }
 
-    const user = await User.findOne({ 
-      email: email.toLowerCase(),
-      otp: otp,
-      otpExpires: { $gt: Date.now() }
-    });
+    const user = await User.findOne({
+      $or: [
+        { email: identifier.toLowerCase() },
+        { mobile: identifier }
+      ]
+    }).select('+password');
 
-    if (!user) {
-      return next(new AppError('The code entered is incorrect or expired', 401, 'INVALID_OTP'));
+    if (!user || !(await user.correctPassword(password, user.password))) {
+      return next(new AppError('Incorrect email/mobile or password', 401));
     }
 
-    const token = signToken(user._id);
-
-    // Clear OTP
-    user.otp = undefined;
-    user.otpExpires = undefined;
-    await user.save({ validateBeforeSave: false });
-
-    // Send token via cookie
-    res.cookie('token', token, {
-      expires: new Date(Date.now() + 1 * 60 * 60 * 1000),
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
-    });
-
-    res.status(200).json({
-      success: true,
-      message: 'Logged in successfully',
-      data: {
-        user: {
-          id: user._id,
-          email: user.email
-        }
-      }
-    });
+    createSendToken(user, 200, res, 'Logged in successfully');
   } catch (error) {
     next(error);
   }

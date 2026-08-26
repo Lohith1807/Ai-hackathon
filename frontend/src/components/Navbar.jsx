@@ -1,10 +1,14 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { FaHeartbeat, FaHistory, FaSignOutAlt, FaSignInAlt } from 'react-icons/fa';
 import client from '../api/client';
 
 const Navbar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  if (location.pathname === '/login') return null;
+
   // Simplified auth check for hackathon UI (in real app, use Context/Redux)
   const isAuthenticated = document.cookie.includes('token=');
 
