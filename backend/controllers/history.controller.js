@@ -1,4 +1,4 @@
-const History = require('../models/History');
+const prisma = require('../prisma/client');
 
 exports.getHistory = async (req, res, next) => {
   try {
@@ -6,12 +6,16 @@ exports.getHistory = async (req, res, next) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const history = await History.find({ email: req.user.email })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    const history = await prisma.history.findMany({
+      where: { userId: req.user.id },
+      orderBy: { createdAt: 'desc' },
+      skip: skip,
+      take: limit
+    });
 
-    const total = await History.countDocuments({ email: req.user.email });
+    const total = await prisma.history.count({
+      where: { userId: req.user.id }
+    });
 
     res.status(200).json({
       success: true,

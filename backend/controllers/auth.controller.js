@@ -1,5 +1,6 @@
-const User = require('../models/User');
+const prisma = require('../prisma/client');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const { AppError } = require('../middleware/errorHandler');
 
 const signToken = (id) => {
@@ -9,7 +10,7 @@ const signToken = (id) => {
 };
 
 const createSendToken = (user, statusCode, res, message) => {
-  const token = signToken(user._id);
+  const token = signToken(user.id);
 
   res.cookie('token', token, {
     expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -24,7 +25,7 @@ const createSendToken = (user, statusCode, res, message) => {
   res.status(statusCode).json({
     success: true,
     message,
-    data: { user: { id: user._id, email: user.email, mobile: user.mobile } }
+    data: { user: { id: user.id, email: user.email, mobile: user.mobile } }
   });
 };
 
@@ -37,20 +38,31 @@ exports.register = async (req, res, next) => {
     }
 
     const isEmail = identifier.includes('@');
+    const email = isEmail ? identifier.toLowerCase() : null;
+    const mobile = !isEmail ? identifier : null;
     
     // Check if user already exists
-    const existingUser = await User.findOne({
-      $or: [{ email: identifier }, { mobile: identifier }]
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: email || undefined },
+          { mobile: mobile || undefined }
+        ]
+      }
     });
 
     if (existingUser) {
       return next(new AppError('User already exists with this email or mobile', 400));
     }
 
-    const newUser = await User.create({
-      email: isEmail ? identifier.toLowerCase() : undefined,
-      mobile: !isEmail ? identifier : undefined,
-      password: password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    const newUser = await prisma.user.create({
+      data: {
+        email: email,
+        mobile: mobile,
+        password: hashedPassword
+      }
     });
 
     createSendToken(newUser, 201, res, 'Registered successfully');
@@ -67,14 +79,18 @@ exports.login = async (req, res, next) => {
       return next(new AppError('Please provide email/mobile and password', 400));
     }
 
-    const user = await User.findOne({
-      $or: [
-        { email: identifier.toLowerCase() },
-        { mobile: identifier }
-      ]
-    }).select('+password');
+    const isEmail = identifier.includes('@');
 
-    if (!user || !(await user.correctPassword(password, user.password))) {
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: isEmail ? identifier.toLowerCase() : undefined },
+          { mobile: !isEmail ? identifier : undefined }
+        ]
+      }
+    });
+
+    if (!user || !(await bcrypt.compare(password, user.password))) {
       return next(new AppError('Incorrect email/mobile or password', 401));
     }
 

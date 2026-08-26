@@ -1,4 +1,4 @@
-const History = require('../models/History');
+const prisma = require('../prisma/client');
 const { getTriageResult } = require('../utils/gemini');
 const cache = require('../utils/cache');
 const { AppError } = require('../middleware/errorHandler');
@@ -26,12 +26,14 @@ exports.assessTriage = async (req, res, next) => {
 
     // Save to history if requested and user is authenticated
     if (saveHistory && req.user) {
-      await History.create({
-        email: req.user.email,
-        symptoms: symptoms,
-        riskLevel: triageData.riskLevel,
-        reasoning: triageData.reasoning,
-        recommendation: triageData.recommendation
+      await prisma.history.create({
+        data: {
+          symptoms: symptoms,
+          riskLevel: triageData.riskLevel,
+          reasoning: triageData.reasoning,
+          recommendation: triageData.recommendation,
+          userId: req.user.id
+        }
       });
     }
 

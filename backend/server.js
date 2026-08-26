@@ -2,8 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const mongoSanitize = require('express-mongo-sanitize');
-const mongoose = require('mongoose');
 const morgan = require('morgan');
 
 const { errorHandler } = require('./middleware/errorHandler');
@@ -12,7 +10,6 @@ const app = express();
 
 // Security Middlewares
 app.use(helmet());
-app.use(mongoSanitize());
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',')
@@ -56,16 +53,14 @@ app.use((req, res, next) => {
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-let isConnected;
+const prisma = require('./prisma/client');
 
 const connectDB = async () => {
-  if (isConnected) return;
   try {
-    const db = await mongoose.connect(process.env.MONGO_URI, { family: 4 });
-    isConnected = db.connections[0].readyState;
-    console.log('MongoDB connected successfully');
+    await prisma.$connect();
+    console.log('PostgreSQL database connected successfully via Prisma');
   } catch (error) {
-    console.error('MongoDB connection error:', error);
+    console.error('Database connection error:', error);
   }
 };
 
