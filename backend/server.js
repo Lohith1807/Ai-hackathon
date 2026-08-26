@@ -56,27 +56,27 @@ app.use((req, res, next) => {
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-let server;
+let isConnected;
 
-mongoose.connect(process.env.MONGO_URI, { family: 4 })
-  .then(() => {
-  console.log('MongoDB connected successfully');
-  server = app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
-}).catch(err => {
-  console.error('MongoDB connection error:', err);
-});
-
-// Handle unhandled rejections
-process.on('unhandledRejection', (err) => {
-  console.log('UNHANDLED REJECTION! 💥 Shutting down...');
-  console.log(err.name, err.message);
-  if (server) {
-    server.close(() => {
-      process.exit(1);
-    });
-  } else {
-    process.exit(1);
+const connectDB = async () => {
+  if (isConnected) return;
+  try {
+    const db = await mongoose.connect(process.env.MONGO_URI, { family: 4 });
+    isConnected = db.connections[0].readyState;
+    console.log('MongoDB connected successfully');
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
   }
-});
+};
+
+connectDB();
+
+// Only listen locally, Vercel handles the listening in production
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`Server running locally on port ${PORT}`);
+  });
+}
+
+// Export for Vercel Serverless
+module.exports = app;
