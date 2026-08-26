@@ -7,6 +7,9 @@ const Login = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [dob, setDob] = useState('');
+  const [place, setPlace] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -14,13 +17,22 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!identifier || !password) return;
+    
+    if (!isLogin && (!name || !dob || !place)) {
+      setError('Please fill in all registration fields');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     const endpoint = isLogin ? '/auth/login' : '/auth/register';
+    const payload = isLogin 
+      ? { identifier, password }
+      : { identifier, password, name, dob, place };
 
     try {
-      await client.post(endpoint, { identifier, password });
+      await client.post(endpoint, payload);
       document.cookie = "token=true; path=/";
       navigate('/triage');
     } catch (err) {
@@ -103,6 +115,44 @@ const Login = () => {
               )}
 
               <form onSubmit={handleSubmit} className="custom-form">
+                {!isLogin && (
+                  <>
+                    <div className="input-group">
+                      <label>USERNAME / FULL NAME</label>
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                        placeholder="Enter your full name"
+                      />
+                    </div>
+                    <div className="input-group" style={{ display: 'flex', gap: '1rem' }}>
+                      <div style={{ flex: 1 }}>
+                        <label>DATE OF BIRTH</label>
+                        <input
+                          type="date"
+                          value={dob}
+                          onChange={(e) => setDob(e.target.value)}
+                          required
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label>PLACE / LOCATION</label>
+                        <input
+                          type="text"
+                          value={place}
+                          onChange={(e) => setPlace(e.target.value)}
+                          required
+                          placeholder="e.g. New York"
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
                 <div className="input-group">
                   <label>EMAIL OR MOBILE</label>
                   <input

@@ -25,13 +25,13 @@ const createSendToken = (user, statusCode, res, message) => {
   res.status(statusCode).json({
     success: true,
     message,
-    data: { user: { id: user.id, email: user.email, mobile: user.mobile } }
+    data: { user: { id: user.id, email: user.email, mobile: user.mobile, name: user.name, role: user.role } }
   });
 };
 
 exports.register = async (req, res, next) => {
   try {
-    const { identifier, password } = req.body;
+    const { identifier, password, name, dob, place } = req.body;
     
     if (!identifier || !password) {
       return next(new AppError('Please provide an email/mobile and password', 400));
@@ -57,11 +57,28 @@ exports.register = async (req, res, next) => {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    // Auto-assign roles based on specific emails
+    let role = 'USER';
+    if (email === 'lohithreddy1819@gmail.com') {
+      role = 'ADMIN';
+    } else if (email === 'lohithreddy18april@gmail.com') {
+      role = 'DOCTOR';
+    }
+
+    let parsedDob = null;
+    if (dob) {
+      parsedDob = new Date(dob);
+    }
+
     const newUser = await prisma.user.create({
       data: {
         email: email,
         mobile: mobile,
-        password: hashedPassword
+        password: hashedPassword,
+        name: name || null,
+        dob: parsedDob,
+        place: place || null,
+        role: role
       }
     });
 
