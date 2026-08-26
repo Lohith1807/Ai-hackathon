@@ -13,13 +13,29 @@ const VoiceAssistant = ({ context = 'user', stats = null }) => {
   useEffect(() => {
     if (recognition) {
       recognition.continuous = false;
-      // You could set language based on user preference here, e.g., 'en-US', 'hi-IN', etc.
+      recognition.interimResults = true; // Show words as they are being spoken
       recognition.lang = 'en-US'; 
       
       recognition.onresult = (event) => {
-        const text = event.results[0][0].transcript;
-        setTranscript(text);
-        processCommand(text);
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+
+        // Show live typing
+        if (interimTranscript) setTranscript(interimTranscript);
+        
+        // Once they finish speaking, process the final command
+        if (finalTranscript) {
+          setTranscript(finalTranscript);
+          processCommand(finalTranscript);
+        }
       };
 
       recognition.onerror = (event) => {
@@ -105,13 +121,22 @@ const VoiceAssistant = ({ context = 'user', stats = null }) => {
       </button>
 
       <AnimatePresence>
-        {(transcript || response) && (
+        {(isListening || transcript || response) && (
           <motion.div 
             className="voice-popup"
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.9 }}
           >
+            <h4 style={{ margin: '0 0 1rem 0', color: '#1e3c72', textAlign: 'center', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>🤖 Talk to AI</h4>
+            
+            {isListening && !transcript && !response && (
+              <div className="ai-speech">
+                <span className="label">AI:</span>
+                <p>I am listening... Please speak.</p>
+              </div>
+            )}
+
             {transcript && (
               <div className="user-speech">
                 <span className="label">You:</span>
