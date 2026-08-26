@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const prisma = require('../prisma/client');
 const { AppError } = require('./errorHandler');
 
 exports.protect = async (req, res, next) => {
@@ -27,7 +27,7 @@ exports.protect = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Check if user still exists
-    const currentUser = await User.findById(decoded.id);
+    const currentUser = await prisma.user.findUnique({ where: { id: decoded.id } });
     if (!currentUser) {
       return next(new AppError('The user belonging to this token does no longer exist.', 401));
     }

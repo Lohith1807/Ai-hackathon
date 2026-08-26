@@ -40,6 +40,9 @@ app.get('/api/v1/health', (req, res) => {
 app.use('/api/v1/auth', require('./routes/auth.routes'));
 app.use('/api/v1/triage', require('./routes/triage.routes'));
 app.use('/api/v1/history', require('./routes/history.routes'));
+app.use('/api/v1/hospitals', require('./routes/hospital.routes'));
+app.use('/api/v1/appointments', require('./routes/appointment.routes'));
+app.use('/api/v1/admin', require('./routes/admin.routes'));
 
 // Catch all unhandled routes
 app.use((req, res, next) => {

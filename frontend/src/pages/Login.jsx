@@ -32,9 +32,22 @@ const Login = () => {
       : { identifier, password, name, dob, place };
 
     try {
-      await client.post(endpoint, payload);
+      const res = await client.post(endpoint, payload);
       document.cookie = "token=true; path=/";
-      navigate('/triage');
+      
+      // Save user to local storage for frontend use
+      const user = res.data.data.user;
+      localStorage.setItem('user', JSON.stringify(user));
+
+      // Navigate based on role
+      if (user.role === 'ADMIN') {
+        navigate('/admin');
+      } else if (user.role === 'USER') {
+        navigate('/hospitals');
+      } else {
+        // Fallback for Doctor or others
+        navigate('/triage');
+      }
     } catch (err) {
       setError(err.response?.data?.error?.message || `Failed to ${isLogin ? 'login' : 'register'}`);
     } finally {
