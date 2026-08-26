@@ -31,8 +31,14 @@ const Navbar = () => {
         <div style={{ display: 'flex', gap: '1rem' }}>
           {isAuthenticated ? (
             <>
-              <Link to="/history" className="btn btn-outline" style={{ padding: '0.5rem 1rem' }}>
-                <FaHistory /> History
+              <Link to="/hospitals" className="btn btn-outline" style={{ padding: '0.5rem 1rem' }}>
+                Hospitals
+              </Link>
+              <Link to="/triage" className="btn btn-outline" style={{ padding: '0.5rem 1rem' }}>
+                Triage
+              </Link>
+              <Link to="/admin" className="btn btn-outline" style={{ padding: '0.5rem 1rem' }}>
+                Admin
               </Link>
               <button onClick={handleLogout} className="btn btn-outline" style={{ padding: '0.5rem 1rem' }}>
                 <FaSignOutAlt /> Logout
