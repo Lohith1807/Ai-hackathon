@@ -43,6 +43,7 @@ app.use('/api/v1/history', require('./routes/history.routes'));
 app.use('/api/v1/hospitals', require('./routes/hospital.routes'));
 app.use('/api/v1/appointments', require('./routes/appointment.routes'));
 app.use('/api/v1/admin', require('./routes/admin.routes'));
+app.use('/api/v1/ai', require('./routes/ai.routes'));
 
 // Catch all unhandled routes
 app.use((req, res, next) => {

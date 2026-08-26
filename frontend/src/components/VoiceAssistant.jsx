@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import client from '../api/client';
 
 const VoiceAssistant = ({ context = 'user', stats = null }) => {
   const [isListening, setIsListening] = useState(false);
@@ -98,37 +99,22 @@ const VoiceAssistant = ({ context = 'user', stats = null }) => {
     }
   };
 
-  const processCommand = (text) => {
-    const lower = text.toLowerCase();
-    let reply = "I'm sorry, I didn't catch that.";
-
-    if (context === 'admin') {
-      if (lower.includes('how many users')) {
-        reply = `There are currently ${stats?.overview?.totalUsers || 0} registered users.`;
-      } else if (lower.includes('how many doctors')) {
-        reply = `We have ${stats?.overview?.totalDoctors || 0} doctors available across all hospitals.`;
-      } else if (lower.includes('how many appointments')) {
-        reply = `There have been ${stats?.overview?.totalAppointments || 0} appointments booked in total.`;
-      } else if (lower.includes('hello') || lower.includes('hi')) {
-        reply = "Hello Admin. How can I help you manage the hospital today?";
-      } else {
-        reply = "As an admin, you can ask me about total users, doctors, or appointments.";
-      }
-    } else {
-      // User context
-      if (lower.includes('book') || lower.includes('appointment')) {
-        reply = "You can book an appointment by selecting a doctor from the hospital list below.";
-      } else if (lower.includes('search') || lower.includes('find')) {
-        reply = "Use the search bar above to find a hospital by name or location.";
-      } else if (lower.includes('hello') || lower.includes('hi')) {
-        reply = "Hello! I am your Care Navigator assistant. How can I help you today?";
-      } else {
-        reply = "You can ask me how to book an appointment or find a hospital.";
-      }
+  const processCommand = async (text) => {
+    try {
+      const res = await client.post('/ai/chat', {
+        prompt: text,
+        context,
+        stats
+      });
+      const reply = res.data.response;
+      setResponse(reply);
+      speak(reply);
+    } catch (err) {
+      console.error('AI Error:', err);
+      const fallback = "I'm sorry, I'm having trouble connecting to my AI brain right now.";
+      setResponse(fallback);
+      speak(fallback);
     }
-
-    setResponse(reply);
-    speak(reply);
   };
 
   if (!recognition) {
