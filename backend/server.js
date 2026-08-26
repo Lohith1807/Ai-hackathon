@@ -1,0 +1,84 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const mongoose = require('mongoose');
+const morgan = require('morgan');
+
+const { errorHandler } = require('./middleware/errorHandler');
+
+const app = express();
+
+// Security Middlewares
+app.use(helmet());
+app.use(mongoSanitize());
+
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',')
+  : ['http://localhost:5173'];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true
+}));
+
+app.use(express.json({ limit: '10kb' })); // Body parser, reading data from body into req.body
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(morgan('dev'));
+
+// Routes
+app.get('/api/v1/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
+app.use('/api/v1/auth', require('./routes/auth.routes'));
+app.use('/api/v1/triage', require('./routes/triage.routes'));
+app.use('/api/v1/history', require('./routes/history.routes'));
+
+// Catch all unhandled routes
+app.all('*', (req, res, next) => {
+  res.status(404).json({
+    success: false,
+    message: `Can't find ${req.originalUrl} on this server!`
+  });
+});
+
+// Global Error Handler
+app.use(errorHandler);
+
+const PORT = process.env.PORT || 5000;
+let server;
+
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+}).then(() => {
+  console.log('MongoDB connected successfully');
+  server = app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}).catch(err => {
+  console.error('MongoDB connection error:', err);
+});
+
+// Handle unhandled rejections
+process.on('unhandledRejection', (err) => {
+  console.log('UNHANDLED REJECTION! 💥 Shutting down...');
+  console.log(err.name, err.message);
+  if (server) {
+    server.close(() => {
+      process.exit(1);
+    });
+  } else {
+    process.exit(1);
+  }
+});

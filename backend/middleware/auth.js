@@ -1,0 +1,41 @@
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const { AppError } = require('./errorHandler');
+
+exports.protect = async (req, res, next) => {
+  try {
+    let token;
+    
+    // Allow token from cookie or Authorization header
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    } else if (req.headers.cookie) {
+      // Very basic cookie parsing for token
+      const cookies = req.headers.cookie.split(';');
+      for (let cookie of cookies) {
+        if (cookie.trim().startsWith('token=')) {
+          token = cookie.trim().substring('token='.length);
+        }
+      }
+    }
+
+    if (!token) {
+      return next(new AppError('You are not logged in! Please log in to get access.', 401));
+    }
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Check if user still exists
+    const currentUser = await User.findById(decoded.id);
+    if (!currentUser) {
+      return next(new AppError('The user belonging to this token does no longer exist.', 401));
+    }
+
+    // Grant access to protected route
+    req.user = currentUser;
+    next();
+  } catch (error) {
+    next(new AppError('Invalid token or token expired', 401));
+  }
+};
