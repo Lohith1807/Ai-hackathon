@@ -5,6 +5,8 @@ const VoiceAssistant = ({ context = 'user', stats = null }) => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [response, setResponse] = useState('');
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
 
   // Initialize Speech Recognition
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -50,6 +52,7 @@ const VoiceAssistant = ({ context = 'user', stats = null }) => {
   }, [stats]);
 
   const toggleListen = () => {
+    setIsChatOpen(false);
     if (isListening) {
       recognition?.stop();
       setIsListening(false);
@@ -59,6 +62,28 @@ const VoiceAssistant = ({ context = 'user', stats = null }) => {
       recognition?.start();
       setIsListening(true);
     }
+  };
+
+  const toggleChat = () => {
+    if (isListening) {
+      recognition?.stop();
+      setIsListening(false);
+    }
+    if (isChatOpen) {
+      setIsChatOpen(false);
+    } else {
+      setTranscript('');
+      setResponse('');
+      setIsChatOpen(true);
+    }
+  };
+
+  const handleChatSubmit = (e) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    setTranscript(chatInput);
+    processCommand(chatInput);
+    setChatInput('');
   };
 
   const speak = (text) => {
@@ -112,16 +137,25 @@ const VoiceAssistant = ({ context = 'user', stats = null }) => {
 
   return (
     <>
-      <button 
-        className={`voice-fab ${isListening ? 'listening' : ''}`}
-        onClick={toggleListen}
-        title="AI Voice Assistant"
-      >
-        {isListening ? '🛑' : '🎤'}
-      </button>
+      <div className="fab-container">
+        <button 
+          className="chat-fab"
+          onClick={toggleChat}
+          title="Text Chat AI"
+        >
+          💬
+        </button>
+        <button 
+          className={`voice-fab ${isListening ? 'listening' : ''}`}
+          onClick={toggleListen}
+          title="AI Voice Assistant"
+        >
+          {isListening ? '🛑' : '🎤'}
+        </button>
+      </div>
 
       <AnimatePresence>
-        {(isListening || transcript || response) && (
+        {(isListening || isChatOpen || transcript || response) && (
           <motion.div 
             className="voice-popup"
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
@@ -130,7 +164,14 @@ const VoiceAssistant = ({ context = 'user', stats = null }) => {
           >
             <h4 style={{ margin: '0 0 1rem 0', color: '#1e3c72', textAlign: 'center', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>🤖 Talk to AI</h4>
             
-            {isListening && !transcript && !response && (
+            {isChatOpen && !transcript && !response && (
+               <div className="ai-speech">
+                 <span className="label">AI:</span>
+                 <p>Hello! Type your question below.</p>
+               </div>
+            )}
+
+            {isListening && !transcript && !response && !isChatOpen && (
               <div className="ai-speech">
                 <span className="label">AI:</span>
                 <p>I am listening... Please speak.</p>
@@ -150,8 +191,21 @@ const VoiceAssistant = ({ context = 'user', stats = null }) => {
                 <p>{response}</p>
               </div>
             )}
+
+            {isChatOpen && (
+              <form onSubmit={handleChatSubmit} className="chat-input-form">
+                <input 
+                  type="text" 
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Ask something..."
+                  autoFocus
+                />
+                <button type="submit">Send</button>
+              </form>
+            )}
             
-            <button className="close-popup" onClick={() => { setTranscript(''); setResponse(''); }}>
+            <button className="close-popup" onClick={() => { setTranscript(''); setResponse(''); setIsChatOpen(false); }}>
               ✕
             </button>
           </motion.div>
@@ -159,26 +213,37 @@ const VoiceAssistant = ({ context = 'user', stats = null }) => {
       </AnimatePresence>
 
       <style>{`
-        .voice-fab {
+        .fab-container {
           position: fixed;
           bottom: 2rem;
           right: 2rem;
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+          z-index: 9999;
+        }
+        .voice-fab, .chat-fab {
           width: 60px;
           height: 60px;
           border-radius: 50%;
-          background: linear-gradient(135deg, #1e3c72, #2a5298);
           color: white;
           border: none;
           font-size: 1.5rem;
-          box-shadow: 0 10px 15px -3px rgba(30, 60, 114, 0.3);
           cursor: pointer;
-          z-index: 9999;
           display: flex;
           justify-content: center;
           align-items: center;
           transition: transform 0.2s;
         }
-        .voice-fab:hover {
+        .voice-fab {
+          background: linear-gradient(135deg, #1e3c72, #2a5298);
+          box-shadow: 0 10px 15px -3px rgba(30, 60, 114, 0.3);
+        }
+        .chat-fab {
+          background: linear-gradient(135deg, #10b981, #059669);
+          box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
+        }
+        .voice-fab:hover, .chat-fab:hover {
           transform: scale(1.1);
         }
         .voice-fab.listening {
@@ -234,6 +299,38 @@ const VoiceAssistant = ({ context = 'user', stats = null }) => {
         }
         .close-popup:hover {
           color: #ef4444;
+        }
+        .chat-input-form {
+          display: flex;
+          gap: 0.5rem;
+          margin-top: 1rem;
+          border-top: 1px solid #eee;
+          padding-top: 1rem;
+        }
+        .chat-input-form input {
+          flex: 1;
+          padding: 0.5rem 0.75rem;
+          border: 1px solid #d1d5db;
+          border-radius: 9999px;
+          font-size: 0.875rem;
+          outline: none;
+        }
+        .chat-input-form input:focus {
+          border-color: #2a5298;
+          box-shadow: 0 0 0 2px rgba(42, 82, 152, 0.2);
+        }
+        .chat-input-form button {
+          padding: 0.5rem 1rem;
+          background: #2a5298;
+          color: white;
+          border: none;
+          border-radius: 9999px;
+          font-size: 0.875rem;
+          cursor: pointer;
+          font-weight: 500;
+        }
+        .chat-input-form button:hover {
+          background: #1e3c72;
         }
       `}</style>
     </>
